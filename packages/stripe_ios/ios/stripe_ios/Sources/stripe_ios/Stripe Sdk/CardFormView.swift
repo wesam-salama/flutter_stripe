@@ -1,5 +1,6 @@
 import Foundation
 import Stripe
+@_spi(STP) import StripePaymentsUI
 import UIKit
 
 @objc(CardFormView)
@@ -9,6 +10,11 @@ public class CardFormView: UIView, STPCardFormViewDelegate {
     public var cardParams: STPPaymentMethodCardParams?
 
     @objc public var dangerouslyGetFullCardDetails: Bool = false
+    @objc public var billingAddressFieldsEnabled: Bool = true {
+        didSet {
+            setBillingAddressFieldsVisibility()
+        }
+    }
     @objc public var onFormComplete: RCTDirectEventBlock?
     @objc public var autofocus: Bool = false
     @objc public var disabled: Bool = false
@@ -36,6 +42,7 @@ public class CardFormView: UIView, STPCardFormViewDelegate {
         self.addSubview(_cardForm)
         setStyles()
         setPreferredNetworks()
+        setBillingAddressFieldsVisibility()
     }
 
     override public func didSetProps(_ changedProps: [String]!) {
@@ -59,9 +66,12 @@ public class CardFormView: UIView, STPCardFormViewDelegate {
                 "complete": complete,
                 "brand": Mappers.mapFromCardBrand(brand) ?? NSNull(),
                 "last4": cardForm?.cardParams?.card?.last4 ?? "",
-                "postalCode": cardForm?.cardParams?.billingDetails?.address?.postalCode ?? "",
-                "country": cardForm?.cardParams?.billingDetails?.address?.country,
             ]
+
+            if billingAddressFieldsEnabled {
+                cardData["postalCode"] = cardForm?.cardParams?.billingDetails?.address?.postalCode ?? ""
+                cardData["country"] = cardForm?.cardParams?.billingDetails?.address?.country
+            }
 
             if dangerouslyGetFullCardDetails {
                 cardData["number"] = cardForm?.cardParams?.card?.number ?? ""
@@ -117,6 +127,22 @@ public class CardFormView: UIView, STPCardFormViewDelegate {
         if let preferredNetworks = preferredNetworks {
             cardForm?.preferredNetworks = preferredNetworks.map(Mappers.intToCardBrand).compactMap { $0 }
         }
+    }
+
+    func setBillingAddressFieldsVisibility() {
+        guard let cardForm = cardForm else {
+            return
+        }
+        let isHidden = !billingAddressFieldsEnabled
+        cardForm.countryField.isHidden = isHidden
+        cardForm.countryField.superview?.isHidden = isHidden
+        cardForm.postalCodeField.isHidden = isHidden
+        cardForm.postalCodeField.superview?.isHidden = isHidden
+        if isHidden && (cardForm.countryField.isFirstResponder || cardForm.postalCodeField.isFirstResponder) {
+            _ = cardForm.becomeFirstResponder()
+        }
+        cardForm.setNeedsLayout()
+        cardForm.layoutIfNeeded()
     }
 
     override public init(frame: CGRect) {

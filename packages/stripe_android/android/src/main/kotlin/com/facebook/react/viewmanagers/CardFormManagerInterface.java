@@ -19,6 +19,7 @@ import com.facebook.react.uimanager.ViewManagerWithGeneratedInterface;
 
 public interface CardFormManagerInterface<T extends View> extends ViewManagerWithGeneratedInterface {
   void setAutofocus(T view, boolean value);
+  void setBillingAddressFieldsEnabled(T view, boolean value);
   void setCardStyle(T view, Dynamic value);
   void setDangerouslyGetFullCardDetails(T view, boolean value);
   void setDefaultValues(T view, Dynamic value);

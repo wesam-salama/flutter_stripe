@@ -43,6 +43,8 @@ class CardFormView(
   private var currentFocusedField: String? = null
   var cardParams: PaymentMethodCreateParams.Card? = null
   var cardAddress: Address? = null
+  private var postalCodeEnabled: Boolean = true
+  private var billingAddressFieldsEnabled: Boolean = true
   private val cardFormViewBinding = StripeCardFormViewBinding.bind(cardForm)
   private val multilineWidgetBinding =
     StripeCardMultilineWidgetBinding.bind(cardFormViewBinding.cardMultilineWidget)
@@ -60,10 +62,21 @@ class CardFormView(
   }
 
   fun setPostalCodeEnabled(value: Boolean) {
-    val visibility = if (value) View.VISIBLE else View.GONE
+    postalCodeEnabled = value
+    updateBillingAddressFieldsVisibility()
+  }
 
+  fun setBillingAddressFieldsEnabled(value: Boolean) {
+    billingAddressFieldsEnabled = value
+    updateBillingAddressFieldsVisibility()
+  }
+
+  private fun updateBillingAddressFieldsVisibility() {
     cardFormViewBinding.cardMultilineWidget.postalCodeRequired = false
-    cardFormViewBinding.postalCodeContainer.visibility = visibility
+    cardFormViewBinding.countryLayout.visibility =
+      if (billingAddressFieldsEnabled) View.VISIBLE else View.GONE
+    cardFormViewBinding.postalCodeContainer.visibility =
+      if (billingAddressFieldsEnabled && postalCodeEnabled) View.VISIBLE else View.GONE
   }
 
   fun setDefaultValues(defaults: ReadableMap?) {
@@ -249,9 +262,12 @@ class CardFormView(
               "expiryYear" to cardParamsMap["exp_year"] as Int,
               "last4" to (it.cardLast4() ?: ""),
               "brand" to mapCardBrand(cardForm.brand),
-              "postalCode" to (it.billingDetails?.address?.postalCode ?: ""),
-              "country" to (it.billingDetails?.address?.country ?: ""),
             )
+
+          if (billingAddressFieldsEnabled) {
+            cardDetails["postalCode"] = it.billingDetails?.address?.postalCode ?: ""
+            cardDetails["country"] = it.billingDetails?.address?.country ?: ""
+          }
 
           if (dangerouslyGetFullCardDetails) {
             cardDetails["number"] = cardParamsMap["number"] as String
@@ -271,11 +287,15 @@ class CardFormView(
             )
 
           cardAddress =
-            Address
-              .Builder()
-              .setPostalCode(it.billingDetails?.address?.postalCode)
-              .setCountry(it.billingDetails?.address?.country)
-              .build()
+            if (billingAddressFieldsEnabled) {
+              Address
+                .Builder()
+                .setPostalCode(it.billingDetails?.address?.postalCode)
+                .setCountry(it.billingDetails?.address?.country)
+                .build()
+            } else {
+              null
+            }
 
           cardFormViewBinding.cardMultilineWidget.paymentMethodCard?.let { params ->
             cardParams = params

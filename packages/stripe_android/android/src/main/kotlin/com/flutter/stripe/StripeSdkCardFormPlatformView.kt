@@ -95,6 +95,13 @@ class StripeSdkCardFormPlatformView(
                 cardFormViewManager.delegate.receiveCommand(cardView, call.method, null)
                 result.success(null)
             }
+            "onBillingAddressFieldsEnabledChanged" -> {
+                val value =
+                    (call.arguments as? Map<*, *>)?.get("billingAddressFieldsEnabled") as? Boolean
+                        ?: true
+                cardView.setBillingAddressFieldsEnabled(value)
+                result.success(null)
+            }
             else -> {
                 cardFormViewManager.delegate.setProperty(
                     cardView,

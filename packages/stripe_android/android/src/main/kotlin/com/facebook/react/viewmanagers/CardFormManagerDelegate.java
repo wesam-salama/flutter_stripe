@@ -29,6 +29,9 @@ public class CardFormManagerDelegate<T extends View, U extends BaseViewManager<T
       case "autofocus":
         mViewManager.setAutofocus(view, value == null ? false : (boolean) value);
         break;
+      case "billingAddressFieldsEnabled":
+        mViewManager.setBillingAddressFieldsEnabled(view, value == null ? true : (boolean) value);
+        break;
       case "cardStyle":
         mViewManager.setCardStyle(view, new DynamicFromObject(value));
         break;

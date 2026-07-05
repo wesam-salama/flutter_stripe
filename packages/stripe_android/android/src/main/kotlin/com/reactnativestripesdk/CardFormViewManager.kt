@@ -43,6 +43,14 @@ class CardFormViewManager :
     view.setPostalCodeEnabled(postalCodeEnabled)
   }
 
+  @ReactProp(name = "billingAddressFieldsEnabled")
+  override fun setBillingAddressFieldsEnabled(
+    view: CardFormView,
+    billingAddressFieldsEnabled: Boolean,
+  ) {
+    view.setBillingAddressFieldsEnabled(billingAddressFieldsEnabled)
+  }
+
   @ReactProp(name = "placeholders")
   override fun setPlaceholders(
     view: CardFormView,

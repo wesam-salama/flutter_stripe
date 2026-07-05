@@ -21,6 +21,7 @@ class CardFormField extends StatefulWidget {
     this.onCardChanged,
     this.onFocus,
     this.enablePostalCode = true,
+    this.billingAddressFieldsEnabled = true,
     this.countryCode,
     this.style,
     this.autofocus = false,
@@ -55,6 +56,12 @@ class CardFormField extends StatefulWidget {
   ///
   /// This is only supported on android
   final bool enablePostalCode;
+
+  /// Whether to show billing address fields in the form.
+  ///
+  /// Defaults to `true`, preserving the default CardFormField behavior. When
+  /// set to `false`, the form shows only card number, expiration, and CVC.
+  final bool billingAddressFieldsEnabled;
 
   /// Android only: Controls the postal code entry shown (when `enablePostalCode` is set to true).
   ///
@@ -125,8 +132,9 @@ mixin CardFormFieldContext {
 
 class CardFormEditController extends ChangeNotifier {
   CardFormEditController({CardFieldInputDetails? initialDetails})
-    : _initalDetails = initialDetails,
-      _details = initialDetails ?? const CardFieldInputDetails(complete: false);
+      : _initalDetails = initialDetails,
+        _details =
+            initialDetails ?? const CardFieldInputDetails(complete: false);
 
   final CardFieldInputDetails? _initalDetails;
   CardFieldInputDetails _details;
@@ -216,6 +224,7 @@ class _CardFormFieldState extends State<CardFormField> {
       dangerouslyGetFullCardDetails: widget.dangerouslyGetFullCardDetails,
       dangerouslyUpdateFullCardDetails: widget.dangerouslyUpdateFullCardDetails,
       enablePostalCode: widget.enablePostalCode,
+      billingAddressFieldsEnabled: widget.billingAddressFieldsEnabled,
       onCardChanged: widget.onCardChanged,
       autofocus: widget.autofocus,
       disabled: widget.disabled,
@@ -241,6 +250,7 @@ class _MethodChannelCardFormField extends StatefulWidget {
     this.onFocus,
     this.style,
     this.enablePostalCode = true,
+    this.billingAddressFieldsEnabled = true,
     double? width,
     double? height,
     BoxConstraints? constraints,
@@ -255,17 +265,18 @@ class _MethodChannelCardFormField extends StatefulWidget {
     this.expirationHintText,
     this.cvcHintText,
     this.postalCodeHintText,
-  }) : assert(constraints == null || constraints.debugAssertIsValid()),
-       constraints = (width != null || height != null)
-           ? constraints?.tighten(width: width, height: height) ??
-                 BoxConstraints.tightFor(width: width, height: height)
-           : constraints;
+  })  : assert(constraints == null || constraints.debugAssertIsValid()),
+        constraints = (width != null || height != null)
+            ? constraints?.tighten(width: width, height: height) ??
+                BoxConstraints.tightFor(width: width, height: height)
+            : constraints;
 
   final BoxConstraints? constraints;
   final CardFocusCallback? onFocus;
   final CardChangedCallback? onCardChanged;
   final CardFormStyle? style;
   final bool enablePostalCode;
+  final bool billingAddressFieldsEnabled;
   final FocusNode focusNode;
   final bool autofocus;
   final bool disabled;
@@ -294,8 +305,7 @@ class _MethodChannelCardFormField extends StatefulWidget {
 }
 
 class _MethodChannelCardFormFieldState
-    extends State<_MethodChannelCardFormField>
-    with CardFormFieldContext {
+    extends State<_MethodChannelCardFormField> with CardFormFieldContext {
   MethodChannel? _methodChannel;
 
   CardFormStyle? _lastStyle;
@@ -345,22 +355,23 @@ class _MethodChannelCardFormFieldState
       if (widget.expirationHintText != null)
         'expiration': widget.expirationHintText,
       if (widget.cvcHintText != null) 'cvc': widget.cvcHintText,
-      if (widget.postalCodeHintText != null)
+      if (widget.billingAddressFieldsEnabled &&
+          widget.postalCodeHintText != null)
         'postalCode': widget.postalCodeHintText,
     };
 
     final creationParams = <String, dynamic>{
       'cardStyle': style.toJson(),
       'postalCodeEnabled': widget.enablePostalCode,
+      'billingAddressFieldsEnabled': widget.billingAddressFieldsEnabled,
       'dangerouslyGetFullCardDetails': widget.dangerouslyGetFullCardDetails,
       if (widget.dangerouslyUpdateFullCardDetails &&
           controller._initalDetails != null)
         'cardDetails': controller._initalDetails?.toJson(),
       'autofocus': widget.autofocus,
       if (widget.preferredNetworks != null)
-        'preferredNetworks': widget.preferredNetworks
-            ?.map((e) => e.brandValue)
-            .toList(),
+        'preferredNetworks':
+            widget.preferredNetworks?.map((e) => e.brandValue).toList(),
       'disabled': widget.disabled,
       'defaultValues': {'countryCode': widget.countryCode},
       if (placeholder.isNotEmpty) 'placeholders': placeholder,
@@ -412,12 +423,12 @@ class _MethodChannelCardFormFieldState
     } else {
       throw UnsupportedError('Unsupported platform view');
     }
-    final constraints =
-        widget.constraints ??
+    final constraints = widget.constraints ??
         BoxConstraints.expand(
-          height: defaultTargetPlatform == TargetPlatform.iOS
-              ? kCardFormFieldDefaultIOSHeight
-              : kCardFormFieldDefaultAndroidHeight,
+          height: _defaultHeightForPlatform(
+            defaultTargetPlatform,
+            widget.billingAddressFieldsEnabled,
+          ),
         );
 
     return ConstrainedBox(constraints: constraints, child: platform);
@@ -451,6 +462,12 @@ class _MethodChannelCardFormFieldState
         'postalCodeEnabled': widget.enablePostalCode,
       });
     }
+    if (widget.billingAddressFieldsEnabled !=
+        oldWidget.billingAddressFieldsEnabled) {
+      _methodChannel?.invokeMethod('onBillingAddressFieldsEnabledChanged', {
+        'billingAddressFieldsEnabled': widget.billingAddressFieldsEnabled,
+      });
+    }
 
     if (widget.countryCode != oldWidget.countryCode) {
       _methodChannel?.invokeMethod('onDefaultValuesChanged', {
@@ -481,7 +498,8 @@ class _MethodChannelCardFormFieldState
         if (widget.expirationHintText != null)
           'expiration': widget.expirationHintText,
         if (widget.cvcHintText != null) 'cvc': widget.cvcHintText,
-        if (widget.postalCodeHintText != null)
+        if (widget.billingAddressFieldsEnabled &&
+            widget.postalCodeHintText != null)
           'postalCode': widget.postalCodeHintText,
       };
       // Use 'placeholders' as method name - Android delegate uses it as property name
@@ -510,8 +528,14 @@ class _MethodChannelCardFormFieldState
         controller._updateDetails(details);
         widget.onCardChanged?.call(details);
       } else {
+        final cardMap = Map<String, dynamic>.from(map['card']);
+        if (!widget.billingAddressFieldsEnabled) {
+          cardMap
+            ..remove('postalCode')
+            ..remove('country');
+        }
         final details = CardFieldInputDetails.fromJson(
-          Map<String, dynamic>.from(map['card']),
+          cardMap,
         );
         controller._updateDetails(details);
         widget.onCardChanged?.call(details);
@@ -610,25 +634,24 @@ class _AndroidCardFormField extends StatelessWidget {
     return PlatformViewLink(
       viewType: viewType,
       surfaceFactory: (context, controller) => AndroidViewSurface(
-        controller:
-            controller
-                // ignore: avoid_as
-                as AndroidViewController,
+        controller: controller
+            // ignore: avoid_as
+            as AndroidViewController,
         gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
         hitTestBehavior: PlatformViewHitTestBehavior.opaque,
       ),
       onCreatePlatformView: (params) {
         onPlatformViewCreated(params.id);
         return PlatformViewsService.initSurfaceAndroidView(
-            id: params.id,
-            viewType: viewType,
-            layoutDirection: Directionality.of(context),
-            creationParams: creationParams,
-            creationParamsCodec: const StandardMessageCodec(),
-            onFocus: () {
-              params.onFocusChanged(true);
-            },
-          )
+          id: params.id,
+          viewType: viewType,
+          layoutDirection: Directionality.of(context),
+          creationParams: creationParams,
+          creationParamsCodec: const StandardMessageCodec(),
+          onFocus: () {
+            params.onFocusChanged(true);
+          },
+        )
           ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
           ..create();
       },
@@ -661,6 +684,23 @@ class _UiKitCardFormField extends StatelessWidget {
 
 const kCardFormFieldDefaultAndroidHeight = 292.0;
 const kCardFormFieldDefaultIOSHeight = 192.0;
+const kCardFormFieldCardOnlyDefaultAndroidHeight = 144.0;
+const kCardFormFieldCardOnlyDefaultIOSHeight = 96.0;
 const kCardFormFieldDefaultFontSize = 17;
 const kCardFormFieldDefaultTextColor = Colors.black;
 const kCardFormFieldDefaultFontFamily = 'Roboto';
+
+double _defaultHeightForPlatform(
+  TargetPlatform platform,
+  bool billingAddressFieldsEnabled,
+) {
+  if (billingAddressFieldsEnabled) {
+    return platform == TargetPlatform.iOS
+        ? kCardFormFieldDefaultIOSHeight
+        : kCardFormFieldDefaultAndroidHeight;
+  }
+
+  return platform == TargetPlatform.iOS
+      ? kCardFormFieldCardOnlyDefaultIOSHeight
+      : kCardFormFieldCardOnlyDefaultAndroidHeight;
+}

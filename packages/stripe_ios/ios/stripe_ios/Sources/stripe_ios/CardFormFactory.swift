@@ -75,6 +75,7 @@ class CardFormPlatformView : NSObject, FlutterPlatformView  {
         case "onStyleChanged",
              "onPlaceholderChanged",
              "onPostalCodeEnabledChanged",
+             "onBillingAddressFieldsEnabledChanged",
              "dangerouslyGetFullCardDetails",
              "isUserInteractionEnabledValue",
              "autofocus",
@@ -106,6 +107,9 @@ class CardFormPlatformView : NSObject, FlutterPlatformView  {
         if let dangerouslyGetFullCardDetails = arguments["dangerouslyGetFullCardDetails"] as? Bool{
             cardForm.dangerouslyGetFullCardDetails = dangerouslyGetFullCardDetails
         }
+        if let billingAddressFieldsEnabled = arguments["billingAddressFieldsEnabled"] as? Bool{
+            cardForm.billingAddressFieldsEnabled = billingAddressFieldsEnabled
+        }
         
         if let preferredNetworks = arguments["preferredNetworks"] as? Array<Int>{
             cardForm.preferredNetworks = preferredNetworks
@@ -120,4 +124,3 @@ class CardFormPlatformView : NSObject, FlutterPlatformView  {
     }
     
 }
-

@@ -190,7 +190,8 @@ class PaymentMethodFactory {
             return params
         }
         if let params = cardFormView?.cardParams as? STPPaymentMethodCardParams {
-            if let address = cardFormView?.cardForm?.cardParams?.billingDetails?.address {
+            if cardFormView?.billingAddressFieldsEnabled == true,
+               let address = cardFormView?.cardForm?.cardParams?.billingDetails?.address {
                 if billingDetailsParams == nil {
                     let bd = STPPaymentMethodBillingDetails()
                     bd.address = STPPaymentMethodAddress()

@@ -121,6 +121,16 @@ CardFormField(
 )
 ```
 
+To show only card number, expiration, and CVC in the card form, disable the
+billing address fields:
+
+```dart
+CardFormField(
+   controller: controller,
+   billingAddressFieldsEnabled: false,
+)
+```
+
 In this very basic example we create a `CardFormEditController`and assign it to the `CardFormField` widget. The initialisation of the controller can be done like:
 
 ```dart
